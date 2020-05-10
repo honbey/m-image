@@ -19,3 +19,5 @@
 [更多图片和资料](http://www.imageprocessingplace.com/)  
 
 `myipf.py`是自己写的一些图像处理函数，还很粗糙，不过效果还是可以的。  
+
+[ipynb在线浏览](https://nbviewer.jupyter.org/)
