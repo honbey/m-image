@@ -87,9 +87,12 @@ def ifftROI(fImage, size):
 # 均方差和峰值信噪比
 def calcMSEPSNR(image1, image2):
     M = image1 - image2
-    MSE = np.sum(M.flatten() * M.flatten()) / np.size(image1)
+    MSE = np.sum(M.flatten() * M.flatten()) / np.size(image1)    
     #SNR = 10 * np.log10(np.sum(image1.flatten() * image1.flatten()) / MSE / np.size(image2))
-    PSNR = 10 * np.log10((255 ** 2) / MSE)
+    if MSE == 0:
+        PSNR = "inf";
+    else:
+        PSNR = 10 * np.log10((255 ** 2) / MSE)
     print("均方差：", MSE)
     print("峰值信噪比：", PSNR)
 
@@ -317,6 +320,76 @@ def filters(image, model="A", size=3):
                 result[i][j] = np.sqrt(X**2 + Y**2)
                         
     return np.clip(result, 0, 255)
+
+def grayImageJudge(src_image, method="w"):
+    if src_image.ndim > 2:
+        if method == "w":
+            dst_image = np.dot(src_image, [0.299,0.587,0.114])
+    else:
+        dst_image = src_image.copy()
+    return dst_image
+
+def zoomByInterpolation(src_image, xratio=0.5, yratio=0.5, method="neighbor"):
+    image = grayImageJudge(src_image)
+    dst_image = np.zeros((int(src_image.shape[0]*xratio), int(src_image.shape[1]*yratio)), dtype=np.uint8)
+    x_r = 1 / xratio
+    y_r = 1 / yratio
+
+    for i in range(dst_image.shape[0]):
+        for j in range(dst_image.shape[1]):
+            if method == "neighbor" or method == "n":
+                src_x = (int)(np.floor(i*x_r))
+                src_y = (int)(np.floor(j*y_r))
+                dst_image[i][j] = image[src_x][src_y];
+            if method == "bilinear" or method == "b":
+                src_x = (i+0.5)*x_r-0.5
+                src_y = (j+0.5)*y_r-0.5
+
+                src_x1 = (int)(np.floor(src_x))
+                src_y1 = (int)(np.floor(src_y))
+                src_x2 = min(src_x1+1, image.shape[0]-1)
+                src_y2 = min(src_y1+1, image.shape[1]-1)
+                
+                r1 = (src_x2 - src_x) * image[src_x1][src_y1] + (src_x - src_x1) * image[src_x2][src_y1]
+                r2 = (src_x2 - src_x) * image[src_x1][src_y2] + (src_x - src_x1) * image[src_x2][src_y2]
+                dst_image[i][j] = (int)((src_y2 - src_y) * r1 + (src_y - src_y1) * r2)
+                
+    return dst_image;
+                
+    
+def globalThresholdSegmentation(src_image, v=None):
+    dst_image = grayImageJudge(src_image)
+    t1, t2 = 128, 130
+    while np.abs(t2 - t1) > 0.0001 and v==None:
+        print(t2,t1)
+        t1 = t2
+        
+        index_zero = (int)(np.min(src_image))
+        index_one = (int)(np.floor(t1))
+        total_zero = 0
+        total_one = 0
+        count_zero = 0
+        count_one = 0
+        
+        histgram_list = myipf.toHist(dst_image)
+        for index_zero in range(index_one):
+            total_zero += histgram_list[index_zero]*index_zero
+            count_zero += histgram_list[index_zero]
+        for index_one in range(np.max(src_image)):
+            total_one += histgram_list[index_one]*index_one
+            count_one += histgram_list[index_one]
+              
+        t2 = (total_one/count_one + total_zero/count_zero) / 2
+    
+    if v != None:
+        t2 = v
+    for i in range(src_image.shape[0]):
+            for j in range(src_image.shape[1]):
+                if src_image[i][j] > t2:
+                    dst_image[i][j] = 1;
+                else:
+                    dst_image[i][j] = 0;
+    return dst_image;
 
 def main():
     print("My image processing functions.")
