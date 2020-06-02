@@ -12,6 +12,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def bitSetOne(x, y): # x的第y位置一
+    x |= (1 << (y - 1))
+    return x
+def bitSetZero(x, y):
+    x &= ~(1 << (y - 1))
+    return x
+def getBit(x, y):
+    return x & (1 << (y - 1))
 
 # 计算两幅单通道图像的协方差矩阵
 def covariance(x, y, ddof=0):
@@ -324,9 +332,9 @@ def filters(image, model="A", size=3):
 def grayImageJudge(src_image, method="w"):
     if src_image.ndim > 2:
         if method == "w":
-            dst_image = np.dot(src_image, [0.299,0.587,0.114])
+            dst_image = np.uint8(np.dot(src_image, [0.299,0.587,0.114]))
     else:
-        dst_image = src_image.copy()
+        dst_image = np.uint8(src_image.copy())
     return dst_image
 
 def zoomByInterpolation(src_image, xratio=0.5, yratio=0.5, method="neighbor"):
@@ -371,7 +379,7 @@ def globalThresholdSegmentation(src_image, v=None):
         count_zero = 0
         count_one = 0
         
-        histgram_list = myipf.toHist(dst_image)
+        histgram_list = toHist(dst_image)
         for index_zero in range(index_one):
             total_zero += histgram_list[index_zero]*index_zero
             count_zero += histgram_list[index_zero]
@@ -390,6 +398,59 @@ def globalThresholdSegmentation(src_image, v=None):
                 else:
                     dst_image[i][j] = 0;
     return dst_image;
+
+def bitPlane(src_image, pos=8, model="bit", show=False):
+    gray_image = grayImageJudge(src_image)
+    dst_image = np.zeros(gray_image.shape, dtype=np.uint8)
+    if show == True:
+        plt.figure()
+    for k in range(1, 9):
+        tmp_image = np.zeros(gray_image.shape, dtype=np.uint8)
+        for i in range(gray_image.shape[0]):
+            for j in range(gray_image.shape[1]):
+                tmp_image[i][j] = getBit(gray_image[i][j], 9-k)
+                if (9-k == pos):
+                    if model == "bit":
+                        dst_image[i][j] = getBit(gray_image[i][j], 9-k)
+                    elif model == "one":
+                        dst_image[i][j] = bitSetOne(gray_image[i][j], 9-k)
+                    elif model == "zero":
+                        dst_image[i][j] = bitSetZero(gray_image[i][j], 9-k)
+        
+        if show == True:
+            plt.subplot(2, 4, k)
+            plt.imshow(tmp_image, cmap="gray")
+            plt.title(9-k)
+            plt.axis("off")
+    if show == True:
+        plt.show()
+    
+    return dst_image
+
+def mathematicalMorphology(src_image, model="erosion", shape="cross"):
+    dst_image = grayImageJudge(src_image)
+    if shape == "cross":
+        structrue_elelment = np.array([
+            [0, 0, 1, 0, 0], 
+            [0, 0, 1, 0, 0], 
+            [1, 1, 1, 1, 1], 
+            [0, 0, 1, 0, 0], 
+            [0, 0, 1, 0, 0],
+        ])
+    if model == "erosion":
+        threshold_value = structrue_elelment.sum() * 255
+    elif model == "dilasion":
+        threshold_value = 1
+    padding_image = np.pad(src_image, (2, 2), mode="edge")
+    for i in range(dst_image.shape[0]):
+        for j in range(dst_image.shape[1]):
+            data = padding_image[i:i+5, j:j+5]
+            if (structrue_elelment * data).sum() >= threshold_value:
+                dst_image[i][j] = 255
+            else:
+                dst_image[i][j] = 0
+    
+    return dst_image
 
 def main():
     print("My image processing functions.")
