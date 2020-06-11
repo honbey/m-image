@@ -16,7 +16,7 @@ def bitSetOne(x, y): # x的第y位置一
     x |= (1 << (y - 1))
     return x
 def bitSetZero(x, y):
-    x &= ~(1 << (y - 1))
+    x = x & ~(1 << (y - 1))
     return x
 def getBit(x, y):
     return x & (1 << (y - 1))
@@ -451,6 +451,81 @@ def mathematicalMorphology(src_image, model="erosion", shape="cross"):
                 dst_image[i][j] = 0
     
     return dst_image
+
+def insertMark(src, data, seed, block=(2, 2)):
+    secret_data = str2Bitarray(data)
+    length = len(secret_data) + 16 # '01010...'
+    pad = bitarray(bin(length)[2:])
+    l   = len(pad)
+    for i in range(16 - l):
+        pad.insert(0, False)
+    secret_data = pad + secret_data
+    #print(secret_data)
+    col = int(np.floor(src.shape[0]/block[0]))
+    row = int(min(np.floor(src.shape[1]/block[1]), np.ceil(length/col)))
+    x = seed
+    dst_image = src.copy()
+    tmp_image = src.copy()
+    k, l= 0, 0
+    for i in range(row):
+        for j in range(col):
+            sr = i*block[0]
+            sc = j*block[1]
+            pos, x = tBBSRNG(x)
+            if k < length:
+                if secret_data[k]:
+                    dst_image[sr:sr+block[0], sc:sc+block[1]] \
+                            = bitSetOne(tmp_image[sr:sr+block[0], sc:sc+block[1]], pos+1)
+                else:
+                    dst_image[sr:sr+block[0], sc:sc+block[1]] \
+                            = bitSetZero(tmp_image[sr:sr+block[0], sc:sc+block[1]], pos+1)
+            k += 1
+    
+    return dst_image
+
+def getMark(src, seed, block=(2, 2)):
+    col = int(np.floor(src.shape[0]/block[0]))
+    row = int(np.floor(src.shape[1]/block[1]))
+    x = seed
+    data = bitarray("")
+    tmp_image = src.copy()
+    for i in range(row):
+        for j in range(col):
+            sr = i*block[0]
+            sc = j*block[1]
+            pos, x = tBBSRNG(x)
+            flag = np.sum(getBit(tmp_image[sr:sr+block[0], sc:sc+block[1]], pos+1))/(2**pos)
+            if flag > block[0]*block[1]/2:
+                data.append(True)
+            else:
+                data.append(False)
+    length = int(data[0:16].to01(), 2)
+
+    return bitarray2Str(data[16:length])
+            
+def tBBSRNG(seed): # Blum Blum S random number generator
+    p, q = 2**31-1, 65537
+    n = p * q
+    b = 0
+    x = seed
+    for i in range(2): # loop twice, the number in range [0, 3]
+        x = x ** 2 % n
+        if x % 2:
+            b += i+1
+    return b, x
+
+def str2Bitarray(src_str):  # string convert to bit array
+    str_bin = ""
+    for c in src_str.encode('utf-8'):
+        c_hex = hex(c)[2:] # ASCII to hex
+
+        c_dec = int("1"+c_hex, 16)
+        c_bin = bin(c_dec)[3:]
+        str_bin += c_bin
+    return bitarray(str_bin)
+
+def bitarray2Str(bitarray_obj):  #  bitarray convert to string
+    return bitarray_obj.tostring()
 
 def main():
     print("My image processing functions.")
