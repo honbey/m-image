@@ -11,6 +11,7 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+from bitarray import bitarray
 
 def bitSetOne(x, y): # x的第y位置一
     x |= (1 << (y - 1))
@@ -392,11 +393,11 @@ def globalThresholdSegmentation(src_image, v=None):
     if v != None:
         t2 = v
     for i in range(src_image.shape[0]):
-            for j in range(src_image.shape[1]):
-                if src_image[i][j] > t2:
-                    dst_image[i][j] = 1;
-                else:
-                    dst_image[i][j] = 0;
+        for j in range(src_image.shape[1]):
+            if dst_image[i][j] >= t2:
+                dst_image[i][j] = 1
+            else:
+                dst_image[i][j] = 0
     return dst_image;
 
 def bitPlane(src_image, pos=8, model="bit", show=False):
